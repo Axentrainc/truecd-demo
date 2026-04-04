@@ -32,5 +32,19 @@ describe('TrueCD Task Manager API', () => {
     expect(response.status).toBe(404);
     expect(response.body.message).toBe('Task not found');
   });
+  
+test('DELETE /tasks/:id removes a task', async () => {
+  const response = await request(app)
+    .delete('/tasks/1');
+  expect(response.status).toBe(200);
+  expect(response.body.message).toBe('Task deleted');
+});
+
+test('DELETE /tasks/999 returns 404 for missing task', async () => {
+  const response = await request(app)
+    .delete('/tasks/999');
+  expect(response.status).toBe(404);
+  expect(response.body.message).toBe('Task not found');
+});
 
 });

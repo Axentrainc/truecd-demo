@@ -36,7 +36,24 @@ app.put('/tasks/:id/complete', (req, res) => {
     res.status(404).json({ message: 'Task not found' });
   }
 });
-
+app.put('/tasks/:id/complete', (req, res) => {
+  const task = tasks.find(t => t.id === parseInt(req.params.id));
+  if (task) {
+    task.completed = true;
+    res.json({ message: 'Task completed', task: task });
+  } else {
+    res.status(404).json({ message: 'Task not found' });
+  }
+});
+app.delete('/tasks/:id', (req, res) => {
+  const taskIndex = tasks.findIndex(t => t.id === parseInt(req.params.id));
+  if (taskIndex !== -1) {
+    const deletedTask = tasks.splice(taskIndex, 1);
+    res.json({ message: 'Task deleted', task: deletedTask[0] });
+  } else {
+    res.status(404).json({ message: 'Task not found' });
+  }
+});
 app.listen(PORT, () => {
   console.log(`TrueCD Task Manager running on port ${PORT}`);
 });
