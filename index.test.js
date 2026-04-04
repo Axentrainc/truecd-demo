@@ -6,7 +6,7 @@ describe('TrueCD Task Manager API', () => {
   test('GET / returns task list', async () => {
     const response = await request(app).get('/');
     expect(response.status).toBe(200);
-    expect(response.body.message).toBe('TrueCD Task Manager');
+    expect(response.body.message).toBe('Wrong Message');
     expect(response.body.tasks).toHaveLength(3);
   });
 
