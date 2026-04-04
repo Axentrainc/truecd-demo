@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TrueCD DORA Metrics Dashboard</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0d1117; color: #e6edf3; padding: 24px; }
+    .header { margin-bottom: 32px; }
+    .header h1 { font-size: 24px; font-weight: 600; color: #e6edf3; }
+    .header p { font-size: 14px; color: #8b949e; margin-top: 4px; }
+    .badge { display: inline-block; font-size: 11px; padding: 2px 10px; border-radius: 12px; margin-left: 10px; font-weight: 500; vertical-align: middle; }
+    .badge.elite { background: #1a7f37; color: #fff; }
+    .badge.high { background: #9e6a03; color: #fff; }
+    .badge.medium { background: #cf222e; color: #fff; }
+    .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 32px; }
+    .metric-card { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 20px; }
+    .metric-label { font-size: 12px; color: #8b949e; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .metric-value { font-size: 32px; font-weight: 700; margin-bottom: 4px; }
+    .metric-sub { font-size: 12px; color: #8b949e; }
+    .metric-value.green { color: #3fb950; }
+    .metric-value.amber { color: #d29922; }
+    .metric-value.red { color: #f85149; }
+    .metric-value.blue { color: #58a6ff; }
+    .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 16px; margin-bottom: 32px; }
+    .chart-card { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 20px; }
+    .chart-title { font-size: 14px; font-weight: 600; margin-bottom: 16px; color: #e6edf3; }
+    .chart-container { position: relative; height: 200px; }
+    .pipeline-table { background: #161b22; border: 1px solid #30363d; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+    .pipeline-table h3 { font-size: 14px; font-weight: 600; margin-bottom: 16px; }
+    table { width: 100%; border-collapse: collapse; }
+    th { font-size: 11px; color: #8b949e; text-align: left; padding: 8px 12px; border-bottom: 1px solid #30363d; text-transform: uppercase; }
+    td { font-size: 13px; padding: 10px 12px; border-bottom: 1px solid #21262d; }
+    tr:last-child td { border-bottom: none; }
+    .status-pass { color: #3fb950; font-weight: 500; }
+    .status-fail { color: #f85149; font-weight: 500; }
+    .footer { font-size: 12px; color: #8b949e; text-align: center; margin-top: 24px; }
+    .target-row { display: flex; gap: 12px; margin-top: 8px; flex-wrap: wrap; }
+    .target-item { background: #21262d; border-radius: 8px; padding: 8px 12px; font-size: 12px; flex: 1; min-width: 160px; }
+    .target-label { color: #8b949e; margin-bottom: 2px; }
+    .target-value { color: #58a6ff; font-weight: 500; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>Enterprise Toolchain CD — DORA Metrics Dashboard
+      <span class="badge high">High Performer</span>
+    </h1>
+    <p>TrueCD Pipeline · truecd-demo · Last updated: April 4, 2026 · Sprint 1 — Pipeline Foundation</p>
+  </div>
+
+  <div class="metrics-grid">
+    <div class="metric-card">
+      <div class="metric-label">Deployment Frequency</div>
+      <div class="metric-value green">5<span style="font-size:18px">/day</span></div>
+      <div class="metric-sub">Elite: multiple per day ✓</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Change Failure Rate</div>
+      <div class="metric-value amber">20<span style="font-size:18px">%</span></div>
+      <div class="metric-sub">Target: &lt;15% · 1 of 5 runs failed</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Mean Time to Recovery</div>
+      <div class="metric-value green">16<span style="font-size:18px">s</span></div>
+      <div class="metric-sub">Elite: &lt;1 hour ✓</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Avg Pipeline Duration</div>
+      <div class="metric-value blue">17<span style="font-size:18px">s</span></div>
+      <div class="metric-sub">Lead time commit → deployed</div>
+    </div>
+  </div>
+
+  <div class="charts-grid">
+    <div class="chart-card">
+      <div class="chart-title">Pipeline runs — pass vs fail</div>
+      <div class="chart-container">
+        <canvas id="runsChart"></canvas>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Pipeline duration per run (seconds)</div>
+      <div class="chart-container">
+        <canvas id="durationChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="pipeline-table">
+    <h3>Pipeline run history — Sprint 1</h3>
+    <table>
+      <tr>
+        <th>#</th>
+        <th>Commit</th>
+        <th>Branch</th>
+        <th>Status</th>
+        <th>Duration</th>
+        <th>Triggered</th>
+      </tr>
+      <tr>
+        <td>#5</td>
+        <td>Merge PR #1 — add delete task feature</td>
+        <td>main</td>
+        <td class="status-pass">✓ Pass</td>
+        <td>19s</td>
+        <td>push</td>
+      </tr>
+      <tr>
+        <td>#4</td>
+        <td>Add delete task feature with tests</td>
+        <td>feature/add-delete-task</td>
+        <td class="status-pass">✓ Pass</td>
+        <td>15s</td>
+        <td>pull_request</td>
+      </tr>
+      <tr>
+        <td>#3</td>
+        <td>Replace TrueCD Manager — fix test</td>
+        <td>main</td>
+        <td class="status-pass">✓ Pass</td>
+        <td>19s</td>
+        <td>push</td>
+      </tr>
+      <tr>
+        <td>#2</td>
+        <td>Test pipeline failure scenario</td>
+        <td>main</td>
+        <td class="status-fail">✗ Fail</td>
+        <td>16s</td>
+        <td>push</td>
+      </tr>
+      <tr>
+        <td>#1</td>
+        <td>Add GitHub Actions CI pipeline</td>
+        <td>main</td>
+        <td class="status-pass">✓ Pass</td>
+        <td>17s</td>
+        <td>push</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="pipeline-table">
+    <h3>DORA targets — Sprint 1 baseline vs industry benchmark</h3>
+    <div class="target-row">
+      <div class="target-item">
+        <div class="target-label">Deployment frequency target</div>
+        <div class="target-value">Daily → Multiple per day</div>
+      </div>
+      <div class="target-item">
+        <div class="target-label">Change failure rate target</div>
+        <div class="target-value">20% → &lt;15% by Sprint 3</div>
+      </div>
+      <div class="target-item">
+        <div class="target-label">MTTR target</div>
+        <div class="target-value">&lt;1 hour — already elite ✓</div>
+      </div>
+      <div class="target-item">
+        <div class="target-label">Lead time target</div>
+        <div class="target-value">&lt;1 day — already elite ✓</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    Enterprise Toolchain CD · JPMC · TrueCD Pipeline · CD-104 DORA Metrics Dashboard · Sprint 1
+  </div>
+
+ <script>
+  const OWNER = 'Axentrainc';
+  const REPO = 'truecd-demo';
+  const API_URL = `https://api.github.com/repos/${OWNER}/${REPO}/actions/runs?per_page=10`;
+
+  async function fetchPipelineData() {
+    try {
+      const response = await fetch(API_URL, {
+        headers: { 'Accept': 'application/vnd.github.v3+json' }
+      });
+      const data = await response.json();
+      const runs = data.workflow_runs;
+
+      if (!runs || runs.length === 0) {
+        console.error('No runs found');
+        return;
+      }
+
+      const runLabels = runs.map((r, i) => `Run #${runs.length - i}`).reverse();
+      const passData = runs.map(r => r.conclusion === 'success' ? 1 : 0).reverse();
+      const failData = runs.map(r => r.conclusion === 'failure' ? 1 : 0).reverse();
+      const durationData = runs.map(r => {
+        const start = new Date(r.created_at);
+        const end = new Date(r.updated_at);
+        return Math.round((end - start) / 1000);
+      }).reverse();
+
+      const totalRuns = runs.length;
+      const failedRuns = runs.filter(r => r.conclusion === 'failure').length;
+      const passedRuns = runs.filter(r => r.conclusion === 'success').length;
+      const failureRate = Math.round((failedRuns / totalRuns) * 100);
+      const avgDuration = Math.round(durationData.reduce((a, b) => a + b, 0) / totalRuns);
+
+      const failedRun = runs.find(r => r.conclusion === 'failure');
+      const failedIndex = runs.indexOf(failedRun);
+      const recoveryRun = failedIndex > 0 ? runs[failedIndex - 1] : null;
+      let mttr = 0;
+      if (failedRun && recoveryRun) {
+        mttr = Math.round((new Date(recoveryRun.updated_at) - new Date(failedRun.updated_at)) / 1000);
+      }
+
+      document.querySelector('.metrics-grid').innerHTML = `
+        <div class="metric-card">
+          <div class="metric-label">Deployment Frequency</div>
+          <div class="metric-value green">${totalRuns}<span style="font-size:18px">/day</span></div>
+          <div class="metric-sub">Elite: multiple per day ✓</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Change Failure Rate</div>
+          <div class="metric-value ${failureRate <= 15 ? 'green' : 'amber'}">${failureRate}<span style="font-size:18px">%</span></div>
+          <div class="metric-sub">Target: &lt;15% · ${failedRuns} of ${totalRuns} runs failed</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Mean Time to Recovery</div>
+          <div class="metric-value green">${mttr || avgDuration}<span style="font-size:18px">s</span></div>
+          <div class="metric-sub">Elite: &lt;1 hour ✓</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-label">Avg Pipeline Duration</div>
+          <div class="metric-value blue">${avgDuration}<span style="font-size:18px">s</span></div>
+          <div class="metric-sub">Lead time commit → deployed</div>
+        </div>
+      `;
+
+      const tableBody = runs.map((r, i) => {
+        const duration = Math.round((new Date(r.updated_at) - new Date(r.created_at)) / 1000);
+        const status = r.conclusion === 'success' 
+          ? '<span class="status-pass">✓ Pass</span>' 
+          : '<span class="status-fail">✗ Fail</span>';
+        return `
+          <tr>
+            <td>#${totalRuns - i}</td>
+            <td>${r.head_commit?.message?.split('\n')[0] || 'No message'}</td>
+            <td>${r.head_branch}</td>
+            <td>${status}</td>
+            <td>${duration}s</td>
+            <td>${r.event}</td>
+          </tr>
+        `;
+      }).join('');
+
+      document.querySelector('table tbody') 
+        ? document.querySelector('table tbody').innerHTML = tableBody
+        : null;
+
+      document.querySelector('.footer').textContent = 
+        `Enterprise Toolchain CD · JPMC · TrueCD Pipeline · CD-104 DORA Metrics · Last updated: ${new Date().toLocaleString()}`;
+
+      renderCharts(runLabels, passData, failData, durationData);
+
+    } catch (error) {
+      console.error('GitHub API error:', error);
+    }
+  }
+
+  function renderCharts(runLabels, passData, failData, durationData) {
+    new Chart(document.getElementById('runsChart'), {
+      type: 'bar',
+      data: {
+        labels: runLabels,
+        datasets: [
+          { label: 'Pass', data: passData, backgroundColor: '#238636', borderRadius: 4 },
+          { label: 'Fail', data: failData, backgroundColor: '#da3633', borderRadius: 4 }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: '#8b949e', font: { size: 12 } } } },
+        scales: {
+          x: { stacked: true, ticks: { color: '#8b949e' }, grid: { color: '#21262d' } },
+          y: { stacked: true, ticks: { color: '#8b949e', stepSize: 1 }, grid: { color: '#21262d' } }
+        }
+      }
+    });
+
+    new Chart(document.getElementById('durationChart'), {
+      type: 'line',
+      data: {
+        labels: runLabels,
+        datasets: [{
+          label: 'Duration (s)',
+          data: durationData,
+          borderColor: '#58a6ff',
+          backgroundColor: 'rgba(88,166,255,0.1)',
+          borderWidth: 2,
+          pointBackgroundColor: '#58a6ff',
+          tension: 0.3,
+          fill: true
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: '#8b949e', font: { size: 12 } } } },
+        scales: {
+          x: { ticks: { color: '#8b949e' }, grid: { color: '#21262d' } },
+          y: { ticks: { color: '#8b949e' }, grid: { color: '#21262d' }, min: 0 }
+        }
+      }
+    });
+  }
+
+  fetchPipelineData();
+</script>
+
+</body>
+</html>
